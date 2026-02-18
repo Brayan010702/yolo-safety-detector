@@ -1,16 +1,19 @@
-# Challenge Documentation
+# Project Documentation
 
 ## Overview
 
 This project implements an object detection system for industrial/workplace safety applications using YOLO11. The system detects 17 object classes including people, forklifts, safety helmets, and other industrial equipment.
 
-## Part I: Model Training and Evaluation
+---
 
-**Training Environment**: Google Colab (Tesla T4 GPU) was used for model training to leverage free GPU resources and accelerate the training process.
+## Model Training and Evaluation
+
+**Training Environment**: Google Colab (Tesla T4 GPU) for GPU acceleration.
 
 ### Dataset Analysis
 
 The dataset contains images with 17 classes related to industrial safety:
+
 - **High frequency classes**: forklift (24,213 samples), person (20,480 samples)
 - **Low frequency classes**: gloves, traffic light, van (< 30 samples each)
 - **Key challenge**: Severe class imbalance (ratio > 2000:1 between most and least common classes)
@@ -38,9 +41,11 @@ The dataset contains images with 17 classes related to industrial safety:
 3. **Extended training**: 80-100 epochs with cosine annealing scheduler
 4. **Larger model**: YOLO11s or YOLO11m for better accuracy
 
-## Part II: FastAPI Implementation
+---
 
-### API Endpoints
+## API Implementation
+
+### Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -78,7 +83,9 @@ curl http://localhost:8000/health
 curl -X POST -F "file=@image.jpg" http://localhost:8000/predict
 ```
 
-## Part III: Cloud Deployment
+---
+
+## Cloud Deployment
 
 ### Platform
 
@@ -86,17 +93,12 @@ curl -X POST -F "file=@image.jpg" http://localhost:8000/predict
 - **Service**: Cloud Run (serverless containers)
 - **Region**: us-central1
 
-### Deployment Configuration
+### Configuration
 
 - **Memory**: 1Gi
 - **CPU**: 1
+- **Min instances**: 0 (scales to zero when idle)
 - **Authentication**: Public (unauthenticated access allowed)
-
-### Production URL
-
-```text
-https://challenge-api-334447306714.us-central1.run.app
-```
 
 ### Deployment Command
 
@@ -106,58 +108,46 @@ gcloud run deploy challenge-api \
   --region us-central1 \
   --allow-unauthenticated \
   --memory 1Gi \
-  --cpu 1
+  --cpu 1 \
+  --min-instances 0 \
+  --max-instances 1
 ```
 
-## Part IV: CI/CD
+---
 
-### Continuous Integration (ci.yml)
+## CI/CD Pipeline
+
+### Continuous Integration (`ci.yml`)
 
 - **Trigger**: Push or PR to `develop` or `main` branches
 - **Jobs**:
-  1. **Lint Job**:
-     - Code quality checks with `ruff`
-     - Detects potential errors and style issues
-  2. **Test Job** (runs after lint passes):
-     - Verifies code imports correctly
-     - Starts API server locally
-     - Tests `/health` endpoint functionality
+  1. **Lint**: Code quality checks with `ruff`
+  2. **Test** (runs after lint passes): verifies imports, starts API locally, and tests `/health`
 
-This approach ensures code quality before deployment and validates that the API works correctly in a clean environment.
+### Continuous Delivery (`cd.yml`)
 
-### Continuous Delivery (cd.yml)
+- **Trigger**: Push to `main`
+- **Steps**: Checkout → Authenticate to GCP → Deploy to Cloud Run
+- **Required secret**: `GCP_SA_KEY` (Service Account JSON) in GitHub repository settings
 
-- **Trigger**: Push to `main` branch
-- **Steps**:
-  1. Checkout code
-  2. Authenticate to GCP
-  3. Deploy to Cloud Run
+---
 
-### Required Secrets
-
-For CD to work automatically, configure `GCP_SA_KEY` secret in GitHub repository settings with a Service Account JSON key.
-
-## Project Structure
-
-```text
-challenge/
-├── challenge/
-│   ├── api.py              # FastAPI application
-│   ├── exploration.ipynb   # Model development notebook
-│   └── artifacts/          # Trained model weights
-├── tests/                  # Test suite
-├── data/                   # Dataset (not in repo)
-├── workflows/              # CI/CD workflow templates
-└── .github/workflows/      # Active GitHub Actions
-```
-
-
-## How to Run Tests
+## Running Tests
 
 ```bash
-# Model tests (requires trained model and data)
+# Evaluate model against test set
 make model-test
 
-# API tests (requires running API server)
+# Run API integration tests
 make api-test
 ```
+
+**Environment variables** (all optional):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TEST_SAMPLE_SIZE` | 6 | Number of test images to sample |
+| `IOU_TH` | 0.5 | IoU threshold for matching predictions to ground truth |
+| `CONF_TH` | 0.25 | Confidence threshold for model inference |
+| `MIN_RECALL` | 0.10 | Minimum recall for model tests to pass |
+| `API_MIN_RECALL` | 0.10 | Minimum recall for API tests to pass |
